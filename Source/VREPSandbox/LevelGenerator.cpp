@@ -3,13 +3,79 @@
 #include "VREPSandbox.h"
 #include "LevelGenerator.h"
 
+// Create the actor for a single room from a given room structure
+void ALevelGenerator::CreateRoom(RoomStruct &Room) 
+{
+	FTransform Transform = FTransform(FQuat::Identity, Room.Location - FVector(MapSizeX,MapSizeY,0.)/2 + (this->GetActorLocation() + FVector(0,0,100)), Room.Scale / 100);
+	//Room.RoomActor = GetWorld()->SpawnActorDeferred<AActor>(FloorClass, Room.Location - FVector(MapSizeX, MapSizeY, 0.) / 2 + this->GetActorLocation(),FRotator::ZeroRotator);
+
+	Room.RoomActor = GetWorld()->SpawnActorDeferred<AActor>(FloorClass, Transform);
+
+	if (Room.RoomActor) {
+
+		
+		Room.RoomActor->FinishSpawning(Transform);
+		Room.RoomActor->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
+	}
+}
+
+// Clean previously generated dungeon
+void ALevelGenerator::Clean()
+{
+	for (RoomStruct &Room : Rooms) {
+		if (Room.RoomActor) {
+			Room.RoomActor->Destroy();
+		}
+	}
+	Rooms.Empty();
+}
+
+// Main generation function. Spawn a full dungeon on this actor when called
+void ALevelGenerator::Generate() 
+{
+	Clean();
+
+	FRandomStream RandomStream(Seed);
+
+	for (uint32 i = 0 ; i < NumberOfRooms ; i++) {
+		RoomStruct Room;
+
+		Room.Scale = FVector(RandomStream.FRandRange(500, 1000), RandomStream.FRandRange(500, 1000), 300);
+		Room.Location = FVector(RandomStream.FRandRange(Room.Scale.X, MapSizeX), RandomStream.FRandRange(Room.Scale.Y, MapSizeY), 0) - FVector(Room.Scale.X, Room.Scale.Y, 0.)/2;
+
+		CreateRoom(Room);
+
+		Rooms.Add(Room);
+	}
+}
+
+void ALevelGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) 
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	Clean();
+	Generate();
+}
+
+void ALevelGenerator::OnConstruction(const FTransform &Transform)
+{
+	Super::OnConstruction(Transform);
+	
+	// Prevent scaling and rotation
+	RootComponent->SetWorldScale3D(FVector(MapSizeX/100,MapSizeY/100,1.));
+	RootComponent->SetWorldRotation(FQuat::Identity);
+
+	// UE_LOG(LogTemp, Log, TEXT("CREATE"));
+
+}
+
 // Sets default values
 ALevelGenerator::ALevelGenerator()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-	// Setup the visualisation plane
+	// Setup the visualization plane
 	UStaticMeshComponent* PlaneRoot = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Plane"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneVisualAsset(TEXT("StaticMesh'/Engine/BasicShapes/Plane.Plane'"));
 	if (PlaneVisualAsset.Succeeded())
@@ -20,47 +86,13 @@ ALevelGenerator::ALevelGenerator()
 	PlaneRoot->SetMobility(EComponentMobility::Static);
 	RootComponent = PlaneRoot;
 
-/*
-	// Setup floor 1 ISMC
-	Floor1 = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("ISMComp"));
-	Floor1->SetupAttachment(RootComponent);
-	Floor1->SetMobility(EComponentMobility::Static);
-	*/
-}
-
-void ALevelGenerator::OnConstruction(const FTransform &Transform)
-{
-	Super::OnConstruction(Transform);
-	
-	// Prevent scaling and rotation
-	RootComponent->SetWorldScale3D(FVector(MapSizeX,MapSizeY,1.));
-	RootComponent->SetWorldRotation(FQuat());
+	Generate();
 }
 
 // Called when the game starts or when spawned
 void ALevelGenerator::BeginPlay()
 {
-	Super::BeginPlay();
-
-/*
-	Floor1->SetStaticMesh(Floor1Mesh);
-	Floor1->SetVisibility(true, true);
-	Floor1->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	Floor1->SetCollisionObjectType(ECollisionChannel::ECC_WorldStatic);
-	this->AddInstanceComponent(Floor1);
-
-	FloorMap.Init(1, MapSizeX*MapSizeY);
-
-	for (int32 y = 0; y < MapSizeY; y++) {
-		for (int32 x = 0; x < MapSizeX; x++) {
-			FTransform Transform = FTransform(FVector((x - (MapSizeX - 1) / 2.) * Spacing, (y - (MapSizeY - 1) / 2.) * Spacing, 0.));
-			
-			Floor1->AddInstance(Transform);
-		}
-	}*/
-
-
-	
+	Super::BeginPlay();	
 }
 
 // Called every frame
