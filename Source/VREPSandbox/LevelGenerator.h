@@ -7,14 +7,16 @@
 #include "LevelGenerator.generated.h"
 
 USTRUCT()
-struct RoomStruct {
+struct FRoomStruct 
+{
+	GENERATED_BODY()
 
-	UPROPERTY();
+	UPROPERTY()
 	FVector Location;
-	UPROPERTY();
+	UPROPERTY()
 	FVector Scale;
 
-	UPROPERTY();
+	UPROPERTY()
 	AActor *RoomActor;
 };
 
@@ -65,9 +67,9 @@ private:
 
 	UInstancedStaticMeshComponent *Floor1;
 
-	TArray<RoomStruct> Rooms;
+	TArray<FRoomStruct> Rooms;
 
-	void CreateRoom(RoomStruct &Room);
+	void CreateRoom(FRoomStruct &Room);
 	void Generate();
 	void Clean();
 

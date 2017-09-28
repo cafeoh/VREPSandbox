@@ -6,7 +6,7 @@
 #define LOG(format, ...) UE_LOG(LogTemp, Log, format, ##__VA_ARGS__)
 
 // Create the actor for a single room from a given room structure
-void ALevelGenerator::CreateRoom(RoomStruct &Room) 
+void ALevelGenerator::CreateRoom(FRoomStruct &Room) 
 {
 	FTransform Transform = FTransform(FQuat::Identity, Room.Location - FVector(MapSizeX,MapSizeY,0.)/2 + (this->GetActorLocation() + FVector(0,0,100)), Room.Scale / 100);
 
@@ -43,7 +43,7 @@ void ALevelGenerator::BeginDestroy()
 // Clean previously generated dungeon
 void ALevelGenerator::Clean()
 {
-	for (RoomStruct &Room : Rooms) {
+	for (FRoomStruct &Room : Rooms) {
 		if (Room.RoomActor && Room.RoomActor->IsValidLowLevel()) {
 			Room.RoomActor->Destroy();
 		}
@@ -66,8 +66,8 @@ void ALevelGenerator::Generate()
 
 	FRandomStream RandomStream(Seed);
 
-	for (uint32 i = 0 ; i < NumberOfRooms ; i++) {
-		RoomStruct Room;
+	/*for (uint32 i = 0 ; i < NumberOfRooms ; i++) {
+		FRoomStruct Room;
 
 		Room.Scale = FVector(RandomStream.FRandRange(500, 1000), RandomStream.FRandRange(500, 1000), 300);
 		Room.Location = FVector(RandomStream.FRandRange(Room.Scale.X, MapSizeX), RandomStream.FRandRange(Room.Scale.Y, MapSizeY), 0) - FVector(Room.Scale.X, Room.Scale.Y, 0.)/2;
@@ -85,8 +85,8 @@ void ALevelGenerator::Generate()
 			for (int j = 0; j < Rooms.Num(); j++) {
 				if (i == j) continue;
 				
-				RoomStruct Room1 = Rooms[i];
-				RoomStruct Room2 = Rooms[j];
+				FRoomStruct Room1 = Rooms[i];
+				FRoomStruct Room2 = Rooms[j];
 
 				FVector DeltaLocation = Room2.Location - Room1.Location;
 				float OverlapStrength = (DeltaLocation.GetAbs() - (Room1.Scale + Room2.Scale) / 2).GetMax();
@@ -114,9 +114,10 @@ void ALevelGenerator::Generate()
 
 	}
 
-	for (RoomStruct &Room : Rooms) {
+	for (FRoomStruct &Room : Rooms) {
 		CreateRoom(Room);
 	}
+	*/
 
 }
 
@@ -149,7 +150,7 @@ void ALevelGenerator::OnConstruction(const FTransform &Transform)
 		}
 
 		if (RegenerateChildrenOnMove) {
-			for (RoomStruct &Room : Rooms) {
+			for (FRoomStruct &Room : Rooms) {
 				if (Room.RoomActor && Room.RoomActor->IsValidLowLevel()) {
 					Room.RoomActor->RerunConstructionScripts();
 				}
