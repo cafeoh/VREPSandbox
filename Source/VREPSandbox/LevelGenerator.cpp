@@ -3,7 +3,7 @@
 #include "VREPSandbox.h"
 #include "LevelGenerator.h"
 
-#define LOG(format, ...) UE_LOG(LogTemp, Log, format, ##__VA_ARGS__)
+#define LOG(format, ...) UE_LOG(LogTemp, Log, format, __VA_ARGS__)
 
 // Create the actor for a single room from a given room structure
 void ALevelGenerator::CreateRoom(FRoomStruct &Room) 
@@ -59,102 +59,130 @@ void ALevelGenerator::Clean()
 	Rooms.Empty(); 
 }
 
+FVector ALevelGenerator::GetRoomWorldPosition(uint32 x, uint32 y) {
+	return this->GetActorLocation() + (FVector(x,y,0) - FVector(MapSizeX - 1,MapSizeY - 1,0)/2)*TileWorldSize;
+}
+
 // Main generation function. Spawn a full dungeon on this actor when called
 void ALevelGenerator::Generate() 
 {
 	Clean();
 
+	TArray<uint32> RoomGrid;
+	RoomGrid.Init(0, MapSizeX*MapSizeY);
+
+	const uint32 TotalSpace = MapSizeX*MapSizeY;
+
+	uint32 RoomID = 1;
+	uint32 CurrentRoomSize = FMath::Min(FMath::Min(MapSizeX,MapSizeY),MaxRoomSize); // Cap maxroom size at level size!
+	uint32 CurrentRoomSizeSpaceUsed = 0;
+
 	FRandomStream RandomStream(Seed);
 
-	/*for (uint32 i = 0 ; i < NumberOfRooms ; i++) {
-		FRoomStruct Room;
+	for (uint32 i = 0; i < MaxIteration; i++) {
 
-		Room.Scale = FVector(RandomStream.FRandRange(500, 1000), RandomStream.FRandRange(500, 1000), 300);
-		Room.Location = FVector(RandomStream.FRandRange(Room.Scale.X, MapSizeX), RandomStream.FRandRange(Room.Scale.Y, MapSizeY), 0) - FVector(Room.Scale.X, Room.Scale.Y, 0.)/2;
+		uint32 Width, Height;
+		bool IsValidPlacement = true;
 
-		Rooms.Add(Room);
-	}
+		if (RandomStream.RandRange(0, 1)) {
+			Width = RandomStream.RandRange(1, CurrentRoomSize);
+			Height = CurrentRoomSize;
+		}
+		else {
+			Width = CurrentRoomSize;
+			Height = RandomStream.RandRange(1, CurrentRoomSize);
+		}
 
-	for (uint32 pass = 0; pass < PushIteration; pass++) {
-		bool Overlap = false;
+		uint32 x = RandomStream.RandRange(0, MapSizeX - Width -1);
+		uint32 y = RandomStream.RandRange(0, MapSizeY - Height -1);
 
-		TArray<FVector> DisplacementToApply;
-		DisplacementToApply.Init(FVector(0.),Rooms.Num());
-
-		for (int i = 0; i < Rooms.Num(); i++) {
-			for (int j = 0; j < Rooms.Num(); j++) {
-				if (i == j) continue;
-				
-				FRoomStruct Room1 = Rooms[i];
-				FRoomStruct Room2 = Rooms[j];
-
-				FVector DeltaLocation = Room2.Location - Room1.Location;
-				float OverlapStrength = (DeltaLocation.GetAbs() - (Room1.Scale + Room2.Scale) / 2).GetMax();
-
-				if (OverlapStrength < 0) {
-					DisplacementToApply[j] -= DeltaLocation.GetUnsafeNormal().RotateAngleAxis(5,FVector(0,0,1))*OverlapStrength*PushForce;
-					Overlap = true;
+		for (uint32 offX = 0; offX < Width && IsValidPlacement; offX++) {
+			for (uint32 offY = 0; offY < Height && IsValidPlacement; offY++) {
+				if (RoomGrid[(x + offX) + (y + offY)*MapSizeX] != 0) {
+					IsValidPlacement = false;
 				}
 			}
 		}
 
-		if (!Overlap){
-			UE_LOG(LogTemp, Log, TEXT("Finished early after %d iterations"), pass + 1);
-			break;
-		} else {
-			for (int n = 0; n < Rooms.Num(); n++) {
-				Rooms[n].Location += DisplacementToApply[n];
-				UE_LOG(LogTemp, Log, TEXT("Before : %s"), *(Rooms[n].Location.ToString()));
-				Rooms[n].Location = Rooms[n].Location.ComponentMax(FVector(0)+Rooms[n].Scale/2);
-				Rooms[n].Location = Rooms[n].Location.ComponentMin(FVector( MapSizeX,  MapSizeY, 0.)-Rooms[n].Scale/2);
-				Rooms[n].Location.Z = 0;
-				UE_LOG(LogTemp, Log, TEXT("After : %s"), *(Rooms[n].Location.ToString()));
+		if (!IsValidPlacement) continue;
+
+		for (uint32 offX = 0; offX < Width; offX++) {
+			for (uint32 offY = 0; offY < Height; offY++) {
+				RoomGrid[(x + offX) + (y + offY)*MapSizeX] = RoomID;
 			}
 		}
 
+		RoomID++;
+		CurrentRoomSizeSpaceUsed += Width*Height;
+
+		if (CurrentRoomSizeSpaceUsed >= TotalSpace / MaxRoomSize) {
+			CurrentRoomSizeSpaceUsed = 0;
+			CurrentRoomSize--;
+			if (CurrentRoomSize <= 1) {
+				break;
+			}
+		}
 	}
 
-	for (FRoomStruct &Room : Rooms) {
-		CreateRoom(Room);
+	//UE_LOG(LogTemp, Warning, TEXT("%d rooms have been created!"),RoomID - 1)
+	LOG(TEXT("%d rooms have been created!"), RoomID - 1)
+
+	TMap<uint32,FColor> ColorMap;
+
+	FlushPersistentDebugLines(GetWorld());
+	for (uint32 x = 0; x < MapSizeX; x++) {
+		for (uint32 y = 0; y < MapSizeY; y++) {
+			uint32 CurrentRoomID = RoomGrid[x + y*MapSizeX];
+			FColor Color;
+			if (CurrentRoomID != 0) {
+				FColor *ColorPtr = ColorMap.Find(CurrentRoomID);
+				if (!ColorPtr) {
+					FVector ColorVector = RandomStream.VRand() * 255;
+					Color = FColor(ColorVector.X, ColorVector.Y, ColorVector.Z);
+					ColorMap.Add(CurrentRoomID, Color);
+				}
+				else {
+					Color = *ColorPtr;
+				}
+				DrawDebugBox(GetWorld(), GetRoomWorldPosition(x, y), FVector(TileWorldSize*.8) / 2, Color, true, 0, 0, 20);
+			}
+// 			DrawDebugBox(GetWorld(), GetRoomWorldPosition(x,y), FVector(TileWorldSize*.8)/2, Color, true, 0, 0,  20);
+		}
 	}
-	*/
+
+	
 
 }
 
 void ALevelGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
 	if (Regenerate) {
 		Regenerate = false;
 	}
 
-	Clean();
+	RootComponent->SetWorldScale3D(FVector(MapSizeX, MapSizeY, 1.));
 
 	if (GenerateInEditor) {
 		Generate();
 	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void ALevelGenerator::OnConstruction(const FTransform &Transform)
 {
 	Super::OnConstruction(Transform);
-	
+
 	// Prevent scaling and rotation
-	RootComponent->SetWorldScale3D(FVector(MapSizeX/100,MapSizeY/100,1.));
+	MapSizeX = FMath::RoundToInt(RootComponent->GetComponentScale().X);
+	MapSizeY = FMath::RoundToInt(RootComponent->GetComponentScale().Y);
+
+	RootComponent->SetWorldScale3D(FVector(MapSizeX,MapSizeY,1.));
 	RootComponent->SetWorldRotation(FQuat::Identity);
 
 	if (GenerateInEditor) {
-		if (Rooms.Num() == 0) {
-			Generate();
-		}
-
+		Generate();
 		if (RegenerateChildrenOnMove) {
-			for (FRoomStruct &Room : Rooms) {
-				if (Room.RoomActor && Room.RoomActor->IsValidLowLevel()) {
-					Room.RoomActor->RerunConstructionScripts();
-				}
-			}
 		}
 	}
 }
@@ -183,12 +211,18 @@ ALevelGenerator::ALevelGenerator()
 
 	// Setup the visualization plane
 	UStaticMeshComponent* PlaneRoot = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Plane"));
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneVisualAsset(TEXT("StaticMesh'/Engine/BasicShapes/Plane.Plane'"));
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneVisualAsset(TEXT("StaticMesh'/Game/Geometry/Meshes/Plane.Plane'"));
 	if (PlaneVisualAsset.Succeeded())
 	{
 		PlaneRoot->SetStaticMesh(PlaneVisualAsset.Object);
 		PlaneRoot->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
+		FVector BoundMin;
+		FVector BoundMax;
+		PlaneRoot->GetLocalBounds(BoundMin, BoundMax);
+		TileWorldSize = (BoundMax - BoundMin).GetMax();
+		UE_LOG(LogTemp, Log, TEXT("Tile bounds are : %f"), TileWorldSize);
 	}
+
 	PlaneRoot->SetMobility(EComponentMobility::Static);
 	RootComponent = PlaneRoot;
 }

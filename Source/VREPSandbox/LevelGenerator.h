@@ -31,22 +31,22 @@ public:
 
 	// Property
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	int32 MapSizeX = 5000;
+	uint32 MapSizeX = 5;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	int32 MapSizeY = 5000;
+	uint32 MapSizeY = 5;
+
+// 	UPROPERTY(EditAnywhere, Category = "Generation")
+// 	uint32 NumberOfRooms = 10;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	uint32 NumberOfRooms = 10;
+	uint32 Seed = 12345;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	int32 Seed = 12345;
+	uint32 MaxIteration = 100;
 
-	UPROPERTY(EditAnywhere, Category = "Generation")
-	uint32 PushIteration = 10;
-
-	UPROPERTY(EditAnywhere, Category = "Generation")
-	float PushForce = 1.;
+ 	UPROPERTY(EditAnywhere, Category = "Generation")
+ 	uint32 MaxRoomSize = 3;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
 	bool GenerateInEditor = true;
@@ -62,6 +62,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Building Blocks")
 	UClass *FloorClass;
 
+	UPROPERTY()
+	float TileWorldSize;
+
 
 private:
 
@@ -72,6 +75,8 @@ private:
 	void CreateRoom(FRoomStruct &Room);
 	void Generate();
 	void Clean();
+
+	FVector GetRoomWorldPosition(uint32 x, uint32 y);
 
 protected:
 	// Called when the game starts or when spawned
