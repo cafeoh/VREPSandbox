@@ -5,27 +5,9 @@
 
 #define LOG(format, ...) UE_LOG(LogTemp, Log, format, __VA_ARGS__)
 
-// Create the actor for a single room from a given room structure
-void ALevelGenerator::CreateRoom(FRoomStruct &Room) 
-{
-	FTransform Transform = FTransform(FQuat::Identity, Room.Location - FVector(MapSizeX,MapSizeY,0.)/2 + (this->GetActorLocation() + FVector(0,0,100)), Room.Scale / 100);
-
-	Room.RoomActor = GetWorld()->SpawnActorDeferred<AActor>(FloorClass, Transform);
-
-	if (Room.RoomActor) {
-
-		Room.RoomActor->FinishSpawning(Transform, true);
-		Room.RoomActor->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-		Room.RoomActor->SetActorTransform(Transform);
-		Room.RoomActor->RerunConstructionScripts();
-	}
-}
 
 void ALevelGenerator::BeginDestroy()
 {
-
-	UE_LOG(LogTemp, Log, TEXT("%d"), Rooms.Num());
-
 	Clean();
 
 	TArray<AActor*> Attachees;
@@ -43,12 +25,6 @@ void ALevelGenerator::BeginDestroy()
 // Clean previously generated dungeon
 void ALevelGenerator::Clean()
 {
-	for (FRoomStruct &Room : Rooms) {
-		if (Room.RoomActor && Room.RoomActor->IsValidLowLevel()) {
-			Room.RoomActor->Destroy();
-		}
-	}
-
 	TArray<AActor*> Attachees;
 	this->GetAttachedActors(Attachees);
 	for(AActor *Attachee : Attachees) {
@@ -56,10 +32,9 @@ void ALevelGenerator::Clean()
 			Attachee->Destroy();
 		}
 	}
-	Rooms.Empty(); 
 }
 
-FVector ALevelGenerator::GetRoomWorldPosition(uint32 x, uint32 y) {
+FVector ALevelGenerator::GetTileWorldPosition(uint32 x, uint32 y) {
 	return this->GetActorLocation() + (FVector(x,y,0) - FVector(MapSizeX - 1,MapSizeY - 1,0)/2)*TileWorldSize;
 }
 
@@ -79,6 +54,8 @@ void ALevelGenerator::Generate()
 
 	FRandomStream RandomStream(Seed);
 
+	FlushPersistentDebugLines(GetWorld());
+
 	for (uint32 i = 0; i < MaxIteration; i++) {
 
 		uint32 Width, Height;
@@ -93,8 +70,8 @@ void ALevelGenerator::Generate()
 			Height = RandomStream.RandRange(1, CurrentRoomSize);
 		}
 
-		uint32 x = RandomStream.RandRange(0, MapSizeX - Width -1);
-		uint32 y = RandomStream.RandRange(0, MapSizeY - Height -1);
+		uint32 x = RandomStream.RandRange(0, MapSizeX - Width);
+		uint32 y = RandomStream.RandRange(0, MapSizeY - Height);
 
 		for (uint32 offX = 0; offX < Width && IsValidPlacement; offX++) {
 			for (uint32 offY = 0; offY < Height && IsValidPlacement; offY++) {
@@ -106,9 +83,19 @@ void ALevelGenerator::Generate()
 
 		if (!IsValidPlacement) continue;
 
+		// We know we got a uniform room available!
+
+		DrawDebugBox(GetWorld(), (GetTileWorldPosition(x, y)+GetTileWorldPosition(x+MapSizeX,y+MapSizeY))/2, FVector(Width-.1,Height-.1,0.2)*TileWorldSize, FColor(255,0,255), true, 0, 0, 20);
+
+		URoom *Room = NewObject<URoom>();
+		Room->SetIsFreeform(true);
+		Room->SetSize(Width,Height);
+
 		for (uint32 offX = 0; offX < Width; offX++) {
 			for (uint32 offY = 0; offY < Height; offY++) {
-				RoomGrid[(x + offX) + (y + offY)*MapSizeX] = RoomID;
+				uint32 Index = (x + offX) + (y + offY)*MapSizeX;
+				RoomGrid[Index] = RoomID;
+				Room->AddTile(Index);
 			}
 		}
 
@@ -129,8 +116,7 @@ void ALevelGenerator::Generate()
 
 	TMap<uint32,FColor> ColorMap;
 
-	FlushPersistentDebugLines(GetWorld());
-	for (uint32 x = 0; x < MapSizeX; x++) {
+	/*for (uint32 x = 0; x < MapSizeX; x++) {
 		for (uint32 y = 0; y < MapSizeY; y++) {
 			uint32 CurrentRoomID = RoomGrid[x + y*MapSizeX];
 			FColor Color;
@@ -144,11 +130,11 @@ void ALevelGenerator::Generate()
 				else {
 					Color = *ColorPtr;
 				}
-				DrawDebugBox(GetWorld(), GetRoomWorldPosition(x, y), FVector(TileWorldSize*.8) / 2, Color, true, 0, 0, 20);
+				DrawDebugBox(GetWorld(), GetTileWorldPosition(x, y), FVector(TileWorldSize*.8) / 2, Color, true, 0, 0, 20);
 			}
 // 			DrawDebugBox(GetWorld(), GetRoomWorldPosition(x,y), FVector(TileWorldSize*.8)/2, Color, true, 0, 0,  20);
 		}
-	}
+	}*/
 
 	
 
@@ -239,4 +225,3 @@ void ALevelGenerator::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 }
-

@@ -4,81 +4,66 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Room.h"
 #include "LevelGenerator.generated.h"
 
-USTRUCT()
-struct FRoomStruct 
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FVector Location;
-	UPROPERTY()
-	FVector Scale;
-
-	UPROPERTY()
-	AActor *RoomActor;
-};
 
 UCLASS()
 class VREPSANDBOX_API ALevelGenerator : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
+
+public:
 	// Sets default values for this actor's properties
 	ALevelGenerator();
 
 	// Property
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	uint32 MapSizeX = 5;
+		uint32 MapSizeX = 5;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	uint32 MapSizeY = 5;
+		uint32 MapSizeY = 5;
 
-// 	UPROPERTY(EditAnywhere, Category = "Generation")
-// 	uint32 NumberOfRooms = 10;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	uint32 Seed = 12345;
+		uint32 Seed = 12345;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	uint32 MaxIteration = 100;
-
- 	UPROPERTY(EditAnywhere, Category = "Generation")
- 	uint32 MaxRoomSize = 3;
+		uint32 MaxIteration = 100;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	bool GenerateInEditor = true;
+		uint32 MaxRoomSize = 3;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	bool RegenerateChildrenOnMove = true;
+		bool GenerateInEditor = true;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
-	bool Regenerate = false;
+		bool RegenerateChildrenOnMove = true;
+
+	UPROPERTY(EditAnywhere, Category = "Generation")
+		bool Regenerate = false;
 
 
 
 	UPROPERTY(EditAnywhere, Category = "Building Blocks")
-	UClass *FloorClass;
+		UClass *FloorClass;
 
 	UPROPERTY()
-	float TileWorldSize;
+		float TileWorldSize;
 
 
-private:
+protected:
 
 	UInstancedStaticMeshComponent *Floor1;
 
-	TArray<FRoomStruct> Rooms;
+	TArray<URoom> Rooms;
 
-	void CreateRoom(FRoomStruct &Room);
 	void Generate();
 	void Clean();
 
-	FVector GetRoomWorldPosition(uint32 x, uint32 y);
+	FVector GetTileWorldPosition(uint32 x, uint32 y);
 
-protected:
+
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	virtual void OnConstruction(const FTransform &Transform) override;
@@ -87,7 +72,7 @@ protected:
 	virtual void BeginDestroy() override;
 	//virtual bool Destroy(bool bNetForce, bool bShouldModifyLevel) override;
 
-public:	
+public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
