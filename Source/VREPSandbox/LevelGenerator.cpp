@@ -44,8 +44,16 @@ void ALevelGenerator::BeginDestroy()
 void ALevelGenerator::Clean()
 {
 	for (RoomStruct &Room : Rooms) {
-		if (Room.RoomActor) {
+		if (Room.RoomActor && Room.RoomActor->IsValidLowLevel()) {
 			Room.RoomActor->Destroy();
+		}
+	}
+
+	TArray<AActor*> Attachees;
+	this->GetAttachedActors(Attachees);
+	for(AActor *Attachee : Attachees) {
+		if (IsValid(Attachee)) {
+			Attachee->Destroy();
 		}
 	}
 	Rooms.Empty(); 
@@ -67,11 +75,46 @@ void ALevelGenerator::Generate()
 		Rooms.Add(Room);
 	}
 
-	for (uint32 i = 0; i < 1000; i++) {
+	for (uint32 pass = 0; pass < PushIteration; pass++) {
+		bool Overlap = false;
+
+		TArray<FVector> DisplacementToApply;
+		DisplacementToApply.Init(FVector(0.),Rooms.Num());
+
+		for (int i = 0; i < Rooms.Num(); i++) {
+			for (int j = 0; j < Rooms.Num(); j++) {
+				if (i == j) continue;
+				
+				RoomStruct Room1 = Rooms[i];
+				RoomStruct Room2 = Rooms[j];
+
+				FVector DeltaLocation = Room2.Location - Room1.Location;
+				float OverlapStrength = (DeltaLocation.GetAbs() - (Room1.Scale + Room2.Scale) / 2).GetMax();
+
+				if (OverlapStrength < 0) {
+					DisplacementToApply[j] -= DeltaLocation.GetUnsafeNormal().RotateAngleAxis(5,FVector(0,0,1))*OverlapStrength*PushForce;
+					Overlap = true;
+				}
+			}
+		}
+
+		if (!Overlap){
+			UE_LOG(LogTemp, Log, TEXT("Finished early after %d iterations"), pass + 1);
+			break;
+		} else {
+			for (int n = 0; n < Rooms.Num(); n++) {
+				Rooms[n].Location += DisplacementToApply[n];
+				UE_LOG(LogTemp, Log, TEXT("Before : %s"), *(Rooms[n].Location.ToString()));
+				Rooms[n].Location = Rooms[n].Location.ComponentMax(FVector(0)+Rooms[n].Scale/2);
+				Rooms[n].Location = Rooms[n].Location.ComponentMin(FVector( MapSizeX,  MapSizeY, 0.)-Rooms[n].Scale/2);
+				Rooms[n].Location.Z = 0;
+				UE_LOG(LogTemp, Log, TEXT("After : %s"), *(Rooms[n].Location.ToString()));
+			}
+		}
 
 	}
 
-	for (RoomStruct Room : Rooms) {
+	for (RoomStruct &Room : Rooms) {
 		CreateRoom(Room);
 	}
 

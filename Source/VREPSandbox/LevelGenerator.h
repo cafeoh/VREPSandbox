@@ -6,17 +6,22 @@
 #include "GameFramework/Actor.h"
 #include "LevelGenerator.generated.h"
 
+USTRUCT()
+struct RoomStruct {
+
+	UPROPERTY();
+	FVector Location;
+	UPROPERTY();
+	FVector Scale;
+
+	UPROPERTY();
+	AActor *RoomActor;
+};
+
 UCLASS()
 class VREPSANDBOX_API ALevelGenerator : public AActor
 {
 	GENERATED_BODY()
-
-	struct RoomStruct {
-		FVector Location;
-		FVector Scale;
-
-		AActor *RoomActor;
-	};
 	
 public:	
 	// Sets default values for this actor's properties
@@ -34,6 +39,12 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
 	int32 Seed = 12345;
+
+	UPROPERTY(EditAnywhere, Category = "Generation")
+	uint32 PushIteration = 10;
+
+	UPROPERTY(EditAnywhere, Category = "Generation")
+	float PushForce = 1.;
 
 	UPROPERTY(EditAnywhere, Category = "Generation")
 	bool GenerateInEditor = true;
