@@ -36,6 +36,10 @@ struct FExitStruct
 	UPROPERTY()
 	uint32 Y;
 
+	// If this exit is to be used in generation
+	UPROPERTY()
+	bool Enabled;
+
 	// Room this exit leads to
 	UPROPERTY()
 	URoom *DestinationRoom;
@@ -65,6 +69,10 @@ public:
 
 	TArray<uint32> &GetTiles();
 	TArray<FExitStruct> &GetExits();
+
+	// Boolean used for construction
+	UPROPERTY()
+	bool HasBeenBuilt = false;
 
 protected:
 	// If the room is not a rectangle

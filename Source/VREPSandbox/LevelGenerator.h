@@ -46,23 +46,25 @@ public:
 
 
 	UPROPERTY(EditAnywhere, Category = "Building Blocks")
-		UClass *FloorClass;
+		UStaticMesh *FloorClass;
 
 	UPROPERTY()
 		float TileWorldSize;
-
 
 protected:
 
 	UInstancedStaticMeshComponent *Floor1;
 
-	TArray<URoom> Rooms;
+	UPROPERTY()
+	TArray<URoom*> Rooms;
 
+	void BuildRoom(URoom &Room);
 	void Generate();
 	void Clean();
 
-	FVector GetTileWorldPosition(uint32 x, uint32 y);
+	UInstancedStaticMeshComponent *FloorISM;
 
+	FVector GetTileWorldPosition(uint32 x, uint32 y);
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

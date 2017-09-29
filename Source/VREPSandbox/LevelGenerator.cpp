@@ -5,7 +5,6 @@
 
 #define LOG(format, ...) UE_LOG(LogTemp, Log, format, __VA_ARGS__)
 
-
 void ALevelGenerator::BeginDestroy()
 {
 	Clean();
@@ -18,6 +17,7 @@ void ALevelGenerator::BeginDestroy()
 	for (AActor *Attachee : Attachees) {
 		Attachee->Destroy();
 	}
+
 
 	Super::BeginDestroy();
 }
@@ -32,10 +32,27 @@ void ALevelGenerator::Clean()
 			Attachee->Destroy();
 		}
 	}
+
+	Rooms.Empty();
+	FloorISM->ClearInstances();
 }
 
 FVector ALevelGenerator::GetTileWorldPosition(uint32 x, uint32 y) {
 	return this->GetActorLocation() + (FVector(x,y,0) - FVector(MapSizeX - 1,MapSizeY - 1,0)/2)*TileWorldSize;
+}
+
+void ALevelGenerator::BuildRoom(URoom &Room) {
+
+	for (uint32 Index : Room.GetTiles()) {
+		LOG(TEXT("Tile %d"),Index);
+		FTransform Transform = FTransform(GetTileWorldPosition(Index%MapSizeX,Index/MapSizeX));
+		LOG(TEXT("%s"),*(Transform.ToString()));
+		FloorISM->AddInstanceWorldSpace(FTransform::Identity);
+	}
+	
+	
+
+	Room.HasBeenBuilt = true;
 }
 
 // Main generation function. Spawn a full dungeon on this actor when called
@@ -73,8 +90,8 @@ void ALevelGenerator::Generate()
 		uint32 x = RandomStream.RandRange(0, MapSizeX - Width);
 		uint32 y = RandomStream.RandRange(0, MapSizeY - Height);
 
-		for (uint32 offX = 0; offX < Width && IsValidPlacement; offX++) {
-			for (uint32 offY = 0; offY < Height && IsValidPlacement; offY++) {
+		for (uint32 offY = 0; offY < Height && IsValidPlacement; offY++) {
+			for (uint32 offX = 0; offX < Width && IsValidPlacement; offX++) {
 				if (RoomGrid[(x + offX) + (y + offY)*MapSizeX] != 0) {
 					IsValidPlacement = false;
 				}
@@ -85,19 +102,21 @@ void ALevelGenerator::Generate()
 
 		// We know we got a uniform room available!
 
-		DrawDebugBox(GetWorld(), (GetTileWorldPosition(x, y)+GetTileWorldPosition(x+MapSizeX,y+MapSizeY))/2, FVector(Width-.1,Height-.1,0.2)*TileWorldSize, FColor(255,0,255), true, 0, 0, 20);
+		DrawDebugBox(GetWorld(), (GetTileWorldPosition(x, y)+GetTileWorldPosition(x+Width-1,y+Height-1))/2, FVector(Width-.1,Height-.1,0.2)*TileWorldSize/2, FColor(0,255,255), true, 0, 0, 20);
 
-		URoom *Room = NewObject<URoom>();
+		URoom *Room = NewObject<URoom>(); 
 		Room->SetIsFreeform(true);
 		Room->SetSize(Width,Height);
 
-		for (uint32 offX = 0; offX < Width; offX++) {
-			for (uint32 offY = 0; offY < Height; offY++) {
+		for (uint32 offY = 0; offY < Height; offY++) {
+			for (uint32 offX = 0; offX < Width; offX++) {
 				uint32 Index = (x + offX) + (y + offY)*MapSizeX;
 				RoomGrid[Index] = RoomID;
 				Room->AddTile(Index);
 			}
 		}
+
+		Rooms.Add(Room);
 
 		RoomID++;
 		CurrentRoomSizeSpaceUsed += Width*Height;
@@ -111,33 +130,11 @@ void ALevelGenerator::Generate()
 		}
 	}
 
-	//UE_LOG(LogTemp, Warning, TEXT("%d rooms have been created!"),RoomID - 1)
+	if(Rooms.Num()){
+		BuildRoom(*Rooms[0]);
+	}
+
 	LOG(TEXT("%d rooms have been created!"), RoomID - 1)
-
-	TMap<uint32,FColor> ColorMap;
-
-	/*for (uint32 x = 0; x < MapSizeX; x++) {
-		for (uint32 y = 0; y < MapSizeY; y++) {
-			uint32 CurrentRoomID = RoomGrid[x + y*MapSizeX];
-			FColor Color;
-			if (CurrentRoomID != 0) {
-				FColor *ColorPtr = ColorMap.Find(CurrentRoomID);
-				if (!ColorPtr) {
-					FVector ColorVector = RandomStream.VRand() * 255;
-					Color = FColor(ColorVector.X, ColorVector.Y, ColorVector.Z);
-					ColorMap.Add(CurrentRoomID, Color);
-				}
-				else {
-					Color = *ColorPtr;
-				}
-				DrawDebugBox(GetWorld(), GetTileWorldPosition(x, y), FVector(TileWorldSize*.8) / 2, Color, true, 0, 0, 20);
-			}
-// 			DrawDebugBox(GetWorld(), GetRoomWorldPosition(x,y), FVector(TileWorldSize*.8)/2, Color, true, 0, 0,  20);
-		}
-	}*/
-
-	
-
 }
 
 void ALevelGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -211,6 +208,14 @@ ALevelGenerator::ALevelGenerator()
 
 	PlaneRoot->SetMobility(EComponentMobility::Static);
 	RootComponent = PlaneRoot;
+
+	FloorISM = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("FloorISM"));
+	FloorISM->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+	FloorISM->SetStaticMesh(FloorClass);
+	FloorISM->SetRelativeLocation(FVector(0.0f, 0.0f, 0.0f));
+	FloorISM->SetMobility(EComponentMobility::Static);
+	FloorISM->SetVisibility(true);
+	
 }
 
 // Called when the game starts or when spawned
