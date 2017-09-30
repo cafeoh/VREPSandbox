@@ -7,12 +7,12 @@
 #include "Room.generated.h"
 
 UENUM(BlueprintType)
-enum class EExitDirection : uint8
+enum class EDirection : uint8
 {
-	N	 UMETA(DisplayName = "North"),
-	E	 UMETA(DisplayName = "East"),
-	S	 UMETA(DisplayName = "South"),
-	W	 UMETA(DisplayName = "West")
+	N=0	 UMETA(DisplayName = "North"),
+	E=1	 UMETA(DisplayName = "East"),
+	S=2	 UMETA(DisplayName = "South"),
+	W=3	 UMETA(DisplayName = "West")
 };
 
 /**
@@ -28,13 +28,11 @@ struct FExitStruct
 	GENERATED_BODY()
 
 	UPROPERTY()
-	EExitDirection ExitDirection;
+	EDirection ExitDirection;
 
 	// Tile inside of the owning room
 	UPROPERTY()
-	uint32 X;
-	UPROPERTY()
-	uint32 Y;
+	uint32 Index;
 
 	// If this exit is to be used in generation
 	UPROPERTY()
@@ -64,6 +62,9 @@ public:
 	uint32 GetWidth();
 	uint32 GetHeight();
 	uint32 GetID();
+
+	TArray<FExitStruct> FindExits(uint32 Index);
+	FExitStruct *FindExit(uint32 Index, EDirection Direction);
 
 	bool IsFreeform();
 

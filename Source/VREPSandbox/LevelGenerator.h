@@ -46,14 +46,19 @@ public:
 
 
 	UPROPERTY(EditAnywhere, Category = "Building Blocks")
-		UStaticMesh *FloorClass;
-
-	UPROPERTY()
-		float TileWorldSize;
+		UBlueprint *FloorBP;
+	UPROPERTY(EditAnywhere, Category = "Building Blocks")
+		UBlueprint *WallBP;
+	UPROPERTY(EditAnywhere, Category = "Building Blocks")
+		UBlueprint *DoorWallBP;
 
 protected:
 
-	UInstancedStaticMeshComponent *Floor1;
+	UPROPERTY()
+	float TileWorldSize;
+
+	UPROPERTY()
+	AActor *SavedActor;
 
 	UPROPERTY()
 	TArray<URoom*> Rooms;
@@ -61,8 +66,6 @@ protected:
 	void BuildRoom(URoom &Room);
 	void Generate();
 	void Clean();
-
-	UInstancedStaticMeshComponent *FloorISM;
 
 	FVector GetTileWorldPosition(uint32 x, uint32 y);
 

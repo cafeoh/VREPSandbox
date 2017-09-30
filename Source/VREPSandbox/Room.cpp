@@ -48,6 +48,29 @@ uint32 URoom::GetID()
 	return ID;
 }
 
+TArray<FExitStruct> URoom::FindExits(uint32 Index)
+{
+	TArray<FExitStruct> Result;
+	for(FExitStruct Exit : Exits){
+		if(Exit.Index == Index){
+			Result.Add(Exit);
+		}
+	}
+
+	return Result;
+}
+
+FExitStruct *URoom::FindExit(uint32 Index, EDirection Direction)
+{
+	for (FExitStruct &Exit : Exits) {
+		if (Exit.Index == Index && Exit.ExitDirection == Direction) {
+			return &Exit;
+		}
+	}
+
+	return nullptr;
+}
+
 bool URoom::IsFreeform()
 {
 	return Freeform;
