@@ -16,6 +16,12 @@ void URoom::SetSize(uint32 W, uint32 H)
 {
 	Width = W;
 	Height = H;
+	Size = W*H;
+}
+
+void URoom::SetSize(uint32 S)
+{
+	Size = S;
 }
 
 void URoom::SetIsFreeform(bool bFreeform)
@@ -28,7 +34,7 @@ void URoom::AddTile(uint32 Index)
 	Tiles.Add(Index);
 }
 
-void URoom::AddExit(FExitStruct &Exit)
+void URoom::AddExit(FExitStruct Exit)
 {
 	Exits.Add(Exit);
 }
@@ -41,6 +47,15 @@ uint32 URoom::GetWidth()
 uint32 URoom::GetHeight()
 {
 	return Height;
+}
+
+uint32 URoom::GetSize()
+{
+	if (Freeform){
+		return Size;
+	}else{
+		return Width*Height;
+	}
 }
 
 uint32 URoom::GetID()

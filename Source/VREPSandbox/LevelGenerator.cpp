@@ -4,6 +4,8 @@
 #include "LevelGenerator.h"
 
 #define LOG(format, ...) UE_LOG(LogTemp, Log, format, __VA_ARGS__)
+#define LOGW(format, ...) UE_LOG(LogTemp, Warning, format, __VA_ARGS__)
+#define LOGE(format, ...) UE_LOG(LogTemp, Error, format, __VA_ARGS__)
 
 void ALevelGenerator::BeginDestroy()
 {
@@ -12,7 +14,7 @@ void ALevelGenerator::BeginDestroy()
 	TArray<AActor*> Attachees;
 	this->GetAttachedActors(Attachees);
 
-	UE_LOG(LogTemp, Log, TEXT("DESTRUCTION BD, found %d attachees"), Attachees.Num());
+	//UE_LOG(LogTemp, Log, TEXT("DESTRUCTION BD, found %d attachees"), Attachees.Num());
 
 	for (AActor *Attachee : Attachees) {
 		Attachee->Destroy();
@@ -28,7 +30,7 @@ void ALevelGenerator::Clean()
 	TArray<AActor*> Attachees;
 	this->GetAttachedActors(Attachees);
 	for(AActor *Attachee : Attachees) {
-		LOG(TEXT("FOUND ACTOR"))
+		//LOG(TEXT("FOUND ACTOR"))
 		if (IsValid(Attachee)) {
 			Attachee->Destroy();
 		}
@@ -41,6 +43,28 @@ FVector ALevelGenerator::GetTileWorldPosition(uint32 x, uint32 y) {
 	return this->GetActorLocation() + (FVector(x,y,0) - FVector(MapSizeX - 1,MapSizeY - 1,0)/2)*TileWorldSize;
 }
 
+FVector ALevelGenerator::GetTileWorldPosition(uint32 index) {
+	return GetTileWorldPosition(index%MapSizeX, index/MapSizeX);
+}
+
+void ALevelGenerator::DrawArrowOnTile(uint32 x, uint32 y, EDirection d, FColor color = FColor(0, 100, 255)){
+	FVector Location = GetTileWorldPosition(x,y);
+
+	FVector Start = FVector(0, 0, 400).RotateAngleAxis(uint32(d)*90,FVector::UpVector) + Location;
+	FVector End = FVector(0, -TileWorldSize*.4, 400).RotateAngleAxis(uint32(d) * 90, FVector::UpVector) + Location;
+	DrawDebugDirectionalArrow(GetWorld(), Start, End, 500, color, true, 0, 0 , 20);
+}
+
+void ALevelGenerator::DrawArrowOnTile(uint32 index, EDirection d, FColor color = FColor(0, 100, 255)) {
+	DrawArrowOnTile(index%MapSizeX, index/MapSizeX, d, color);
+}
+
+float ALevelGenerator::GetAdjacentExitIndex(FExitStruct Exit)
+{
+	const int32 DestMap[] = {-int32(MapSizeX),1,MapSizeX,-1};
+	return Exit.Index + DestMap[(uint32) Exit.ExitDirection];
+}
+
 void ALevelGenerator::BuildRoom(URoom &Room) {
 
 	for (uint32 Index : Room.GetTiles()) {
@@ -50,8 +74,12 @@ void ALevelGenerator::BuildRoom(URoom &Room) {
 			AActor *NewActor;
 			FExitStruct *Exit;
 
-			if(FloorBP){
-				NewActor = GetWorld()->SpawnActor<AActor>(FloorBP->GeneratedClass, Transform);
+			if(FloorBP && FloorFreeformBP){
+				if(Room.IsFreeform()){
+					NewActor = GetWorld()->SpawnActor<AActor>(FloorFreeformBP->GeneratedClass, Transform);
+				}else{
+					NewActor = GetWorld()->SpawnActor<AActor>(FloorBP->GeneratedClass, Transform);
+				}
 				NewActor->AttachToComponent(RootComponent,FAttachmentTransformRules::KeepWorldTransform);
 			}
 
@@ -68,12 +96,15 @@ void ALevelGenerator::BuildRoom(URoom &Room) {
 					if(Room.GetTiles().Contains(AdjIndex)) continue;
 
 					Transform.SetRotation(FQuat(FRotator(0, uint32(Direction)*90, 0)));
-					Exit = Room.FindExit(Index - MapSizeX, Direction);
+					Exit = Room.FindExit(Index, Direction);
 
-					if(Exit && Exit->Enabled){
+
+					if(Exit && Exit->Mode == 2){
+						//DrawDebugBox(GetWorld(), GetTileWorldPosition(Index) + FVector(0, -200, 100).RotateAngleAxis(uint32(Direction) * 90, FVector::UpVector), FVector(0.1, .1, 0.1)*TileWorldSize / 2, FColor(0, 0, 255), true, 0, 0, 20);
 						NewActor = GetWorld()->SpawnActor<AActor>(DoorWallBP->GeneratedClass, Transform);
 						NewActor->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
 					}else{
+						//DrawDebugBox(GetWorld(), GetTileWorldPosition(Index) + FVector(0, -200, 100).RotateAngleAxis(uint32(Direction) * 90, FVector::UpVector), FVector(0.1, .1, 0.1)*TileWorldSize / 2, FColor(255, 0, 0), true, 0, 0, 20);
 						NewActor = GetWorld()->SpawnActor<AActor>(WallBP->GeneratedClass, Transform);
 						NewActor->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepWorldTransform);
 					}
@@ -81,10 +112,6 @@ void ALevelGenerator::BuildRoom(URoom &Room) {
 			}
 		}
 	}
-
-	//UClass *ActorClass = FloorBP->GetClass();
-
-
 
 	Room.HasBeenBuilt = true;
 }
@@ -102,6 +129,15 @@ void ALevelGenerator::Generate()
 
 	uint32 CurrentRoomSize = FMath::Min(FMath::Min(MapSizeX,MapSizeY),MaxRoomSize); // Cap maxroom size at level size!
 	uint32 CurrentRoomSizeSpaceUsed = 0;
+
+	// Setup starting room
+	URoom *StartingRoom = NewObject<URoom>();
+	StartingRoom->SetIsFreeform(false);
+	StartingRoom->SetSize(1, 1);
+	uint32 StartingRoomIndex = (MapSizeX/2)*(MapSizeY+1);
+	StartingRoom->AddTile(StartingRoomIndex);
+	RoomGrid[StartingRoomIndex] = StartingRoom;
+	Rooms.Add(StartingRoom);
 
 	FRandomStream RandomStream(Seed);
 
@@ -139,12 +175,9 @@ void ALevelGenerator::Generate()
 
 		/// We know we got a uniform room available! ///
 
-		//DrawDebugBox(GetWorld(), (GetTileWorldPosition(x, y)+GetTileWorldPosition(x+Width-1,y+Height-1))/2, FVector(Width-.1,Height-.1,0.2)*TileWorldSize/2, FColor(0,255,255), true, 0, 0, 20);
-
 		// Make a room out of it and write it's ID to the tile
-		//
 		URoom *Room = NewObject<URoom>(); 
-		Room->SetIsFreeform(true);
+		Room->SetIsFreeform(false);
 		Room->SetSize(Width,Height);
 
 		for (uint32 offY = 0; offY < Height; offY++) {
@@ -167,6 +200,49 @@ void ALevelGenerator::Generate()
 			}
 		}
 	}
+	
+
+	// Build all Freeform rooms
+	for (uint32 y = 0; y < MapSizeY; y++) {
+		for (uint32 x = 0; x < MapSizeX; x++) {
+			uint32 Index = x + y * MapSizeX;
+			
+			if(RoomGrid[Index]) continue; // Regular room tile
+
+			URoom *Room = NewObject<URoom>();
+			Room->SetIsFreeform(true);
+
+			TArray<uint32> TileStack = {Index};
+			uint32 Size=0;
+
+			while (TileStack.Num() > 0){
+				uint32 CurrentIndex = TileStack.Pop();
+
+				Room->AddTile(CurrentIndex);
+				RoomGrid[CurrentIndex] = Room;
+
+				if ((CurrentIndex % MapSizeX) > 0 &&		    RoomGrid[CurrentIndex - 1]		  == 0){
+					TileStack.AddUnique(CurrentIndex - 1);
+				}
+				if ((CurrentIndex / MapSizeX) > 0 &&			RoomGrid[CurrentIndex - MapSizeX] == 0){
+					TileStack.AddUnique(CurrentIndex - MapSizeX);
+				}
+				if ((CurrentIndex % MapSizeX) < (MapSizeX-1) && RoomGrid[CurrentIndex + 1]		  == 0){
+					TileStack.AddUnique(CurrentIndex + 1);
+				}
+				if ((CurrentIndex / MapSizeX) < (MapSizeY-1) && RoomGrid[CurrentIndex + MapSizeX] == 0){
+					TileStack.AddUnique(CurrentIndex + MapSizeX);
+				}
+
+				Size++;
+			}
+
+			Room->SetSize(Size);
+			Rooms.Add(Room);
+		}
+	}
+			
+
 	for (uint32 y = 0; y < MapSizeY; y++) {
 		for (uint32 x = 0 ; x < MapSizeX ; x ++){
 			uint32 Index = x + y * MapSizeX;
@@ -174,6 +250,7 @@ void ALevelGenerator::Generate()
 
 			// TODO : Implement freeform rooms
 			if (!Room){
+				LOGE(TEXT("FOUND EMPTY ROOM TILE!!! SHOULDN'T HAPPEN!!!"));
 				continue;
 			}
 
@@ -181,30 +258,65 @@ void ALevelGenerator::Generate()
 			if (x < MapSizeX - 1){
 				URoom *AdjRoom = RoomGrid[Index + 1];
 				if(AdjRoom && Room != AdjRoom){
-					DrawDebugBox(GetWorld(), (GetTileWorldPosition(x,y)+GetTileWorldPosition(x+1, y))/2, FVector(.3, .3, 0.2)*TileWorldSize / 2, FColor(0, 255, 255), true, 0, 0, 20);
-					FExitStruct LeftExit = { EDirection::E, Index, true, AdjRoom };
-					FExitStruct RightExit = { EDirection::W, Index + 1, true, Room };
-					Room->AddExit(LeftExit);
-					AdjRoom->AddExit(RightExit);
+					//DrawDebugBox(GetWorld(), (GetTileWorldPosition(x,y)+GetTileWorldPosition(x+1, y))/2, FVector(.3, .3, 0.2)*TileWorldSize / 2, FColor(0, 255, 255), true, 0, 0, 20);
+					Room->AddExit   ({ EDirection::E, Index,     1, AdjRoom });
+					AdjRoom->AddExit({ EDirection::W, Index + 1, 1, Room    });
 				}
 			}
 			// Link exits with room to the south
 			if (y < MapSizeY - 1) {
 				URoom *AdjRoom = RoomGrid[Index + MapSizeX];
 				if (AdjRoom && Room != AdjRoom) {
-					DrawDebugBox(GetWorld(), (GetTileWorldPosition(x, y) + GetTileWorldPosition(x, y+1)) / 2, FVector(.3, .3, 0.2)*TileWorldSize / 2, FColor(0, 255, 255), true, 0, 0, 20);
-					FExitStruct UpExit = { EDirection::S, Index, true, AdjRoom };
-					FExitStruct DownExit = { EDirection::N, Index + MapSizeX, true, Room };
-					Room->AddExit(UpExit);
-					AdjRoom->AddExit(DownExit);
+					//DrawDebugBox(GetWorld(), (GetTileWorldPosition(x, y) + GetTileWorldPosition(x, y+1)) / 2, FVector(.3, .3, 0.2)*TileWorldSize / 2, FColor(0, 255, 255), true, 0, 0, 20);
+					Room->AddExit   ({ EDirection::S, Index,            1, AdjRoom });
+					AdjRoom->AddExit({ EDirection::N, Index + MapSizeX, 1,    Room });
 				}
 			}
 		}
 	}
 
-	for (URoom *Room : Rooms){
-		BuildRoom(*Room);
+	uint32 MainBranchSize = RandomStream.RandRange(7,15);
+	URoom *CurrentRoom = StartingRoom;
+	TArray<URoom*> RoomsToBuild = {CurrentRoom};
+	bool EarlyStop = false;
+
+	for(uint32 i=0 ; i<MainBranchSize - 1 && !EarlyStop ; i++){ // -1 Because the first room is a given
+		TArray<FExitStruct> &Exits = CurrentRoom->GetExits();
+		uint32 ExitOffset = RandomStream.RandRange(0,Exits.Num());
+
+		for (uint32 t = 0; t<(uint32) Exits.Num(); t++) {
+			FExitStruct &CurrentExit = Exits[(t+ExitOffset)%Exits.Num()];
+
+			if (RoomsToBuild.Contains(CurrentExit.DestinationRoom)){
+				if(t == Exits.Num()-1){
+					LOG(TEXT("EARLY STOP : %d/%d rooms generated"),i+1,MainBranchSize)
+					EarlyStop = true;
+				}
+				continue;
+			}
+
+			/// Valid exit ///
+
+			DrawArrowOnTile(CurrentExit.Index, CurrentExit.ExitDirection);
+
+			CurrentExit.Mode = 2;
+
+			uint32 AdjIndex = GetAdjacentExitIndex(CurrentExit);
+
+			CurrentRoom = CurrentExit.DestinationRoom;
+			CurrentRoom->FindExit(AdjIndex, EDirection((uint32(CurrentExit.ExitDirection) + 2)%4))->Mode = 2;
+			RoomsToBuild.Add(CurrentRoom);
+
+			break;
+		}
 	}
+
+
+ 	for (URoom *Room : RoomsToBuild){
+ 		BuildRoom(*Room);
+ 	}
+
+	LastGenerationTime = FDateTime::Now().GetTicks();
 }
 
 void ALevelGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -215,9 +327,9 @@ void ALevelGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 
 	RootComponent->SetWorldScale3D(FVector(MapSizeX, MapSizeY, 1.));
 
-	if (GenerateInEditor) {
+	/*if (GenerateInEditor) {
 		Generate();
-	}
+	}*/
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -234,9 +346,12 @@ void ALevelGenerator::OnConstruction(const FTransform &Transform)
 	RootComponent->SetWorldRotation(FQuat::Identity);
 
 	if (GenerateInEditor) {
-		Generate();
-		if (RegenerateChildrenOnMove) {
+		if((FDateTime::Now().GetTicks() - LastGenerationTime > 200000)){
+			//LOG(TEXT("%d"), FDateTime::Now().GetTicks());
+			Generate();
 		}
+	}else{
+		Clean();
 	}
 }
 
@@ -273,7 +388,6 @@ ALevelGenerator::ALevelGenerator()
 		FVector BoundMax;
 		PlaneRoot->GetLocalBounds(BoundMin, BoundMax);
 		TileWorldSize = (BoundMax - BoundMin).GetMax();
-		UE_LOG(LogTemp, Log, TEXT("Tile bounds are : %f"), TileWorldSize);
 	}
 
 	PlaneRoot->SetMobility(EComponentMobility::Static);

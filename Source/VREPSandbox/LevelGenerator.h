@@ -48,6 +48,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Building Blocks")
 		UBlueprint *FloorBP;
 	UPROPERTY(EditAnywhere, Category = "Building Blocks")
+		UBlueprint *FloorFreeformBP;
+	UPROPERTY(EditAnywhere, Category = "Building Blocks")
 		UBlueprint *WallBP;
 	UPROPERTY(EditAnywhere, Category = "Building Blocks")
 		UBlueprint *DoorWallBP;
@@ -63,11 +65,18 @@ protected:
 	UPROPERTY()
 	TArray<URoom*> Rooms;
 
+	int64 LastGenerationTime;
+
 	void BuildRoom(URoom &Room);
 	void Generate();
 	void Clean();
 
 	FVector GetTileWorldPosition(uint32 x, uint32 y);
+	FVector GetTileWorldPosition(uint32 Index);
+	void DrawArrowOnTile(uint32 x, uint32 y, EDirection d, FColor color);
+	void DrawArrowOnTile(uint32 index, EDirection d, FColor color);
+
+	float GetAdjacentExitIndex(FExitStruct Exit);
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

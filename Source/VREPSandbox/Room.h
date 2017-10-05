@@ -34,9 +34,11 @@ struct FExitStruct
 	UPROPERTY()
 	uint32 Index;
 
-	// If this exit is to be used in generation
+	// 0 = No passage (wall or window)
+	// 1 = Potential exit (actual exit to a room will be chosen amongst those)
+	// 2 = Exit (this will be a passage)
 	UPROPERTY()
-	bool Enabled;
+	uint8 Mode;
 
 	// Room this exit leads to
 	UPROPERTY()
@@ -54,13 +56,15 @@ public:
 
 
 	void SetSize(uint32 W, uint32 H);
+	void SetSize(uint32 S);
 	void SetIsFreeform(bool bFreeform);
 	void AddTile(uint32 Index);
-	void AddExit(FExitStruct &Exit);
+	void AddExit(FExitStruct Exit);
 
 
 	uint32 GetWidth();
 	uint32 GetHeight();
+	uint32 GetSize();
 	uint32 GetID();
 
 	TArray<FExitStruct> FindExits(uint32 Index);
@@ -84,11 +88,13 @@ protected:
 	UPROPERTY()
 	uint32 ID;
 
-	// Bounds if Freeform, size of the rectangle otherwise
+	// Size of the rectangle if room isn't freeform
 	UPROPERTY()
 	uint32 Width = 0;
 	UPROPERTY()
 	uint32 Height = 0;
+	UPROPERTY()
+	uint32 Size = 0;
 
 	// Array of tiles. If not a Freeform room, this is sorted (first tile is top-leftmost, last tile is bottom-rightmost)
 	UPROPERTY()
