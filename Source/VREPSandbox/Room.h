@@ -22,26 +22,26 @@ enum class EDirection : uint8
 
 class URoom;
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FExitStruct
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
 	EDirection ExitDirection;
 
 	// Tile inside of the owning room
-	UPROPERTY()
-	uint32 Index;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
+	int32 Index;
 
 	// 0 = No passage (wall or window)
 	// 1 = Potential exit (actual exit to a room will be chosen amongst those)
 	// 2 = Exit (this will be a passage)
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
 	uint8 Mode;
 
 	// Room this exit leads to
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Exit")
 	URoom *DestinationRoom;
 
 };
@@ -55,24 +55,32 @@ public:
 	URoom();
 
 
-	void SetSize(uint32 W, uint32 H);
-	void SetSize(uint32 S);
+	void SetSize(int32 W, int32 H);
+	void SetSize(int32 S);
 	void SetIsFreeform(bool bFreeform);
-	void AddTile(uint32 Index);
+	void AddTile(int32 Index);
 	void AddExit(FExitStruct Exit);
 
+	UFUNCTION(BlueprintPure)
+	int32 GetWidth();
+	UFUNCTION(BlueprintPure)
+	int32 GetHeight();
+	UFUNCTION(BlueprintPure)
+	int32 GetSize();
+	UFUNCTION(BlueprintPure)
+	int32 GetID();
 
-	uint32 GetWidth();
-	uint32 GetHeight();
-	uint32 GetSize();
-	uint32 GetID();
+	UFUNCTION(BlueprintPure)
+	TArray<FExitStruct> FindExits(int32 Index);
+	UFUNCTION(BlueprintPure)
+	int32 FindExitIndex(int32 Index, EDirection Direction);
 
-	TArray<FExitStruct> FindExits(uint32 Index);
-	FExitStruct *FindExit(uint32 Index, EDirection Direction);
-
+	UFUNCTION(BlueprintPure)
 	bool IsFreeform();
 
-	TArray<uint32> &GetTiles();
+	UFUNCTION(BlueprintPure)
+	TArray<int32> &GetTiles();
+	UFUNCTION(BlueprintPure)
 	TArray<FExitStruct> &GetExits();
 
 	// Boolean used for construction
@@ -86,19 +94,19 @@ protected:
 
 	// Unique room ID
 	UPROPERTY()
-	uint32 ID;
+	int32 ID;
 
 	// Size of the rectangle if room isn't freeform
 	UPROPERTY()
-	uint32 Width = 0;
+	int32 Width = 0;
 	UPROPERTY()
-	uint32 Height = 0;
+	int32 Height = 0;
 	UPROPERTY()
-	uint32 Size = 0;
+	int32 Size = 0;
 
 	// Array of tiles. If not a Freeform room, this is sorted (first tile is top-leftmost, last tile is bottom-rightmost)
 	UPROPERTY()
-	TArray<uint32> Tiles;
+	TArray<int32> Tiles;
 
 	// List of exits to other rooms
 	UPROPERTY()
@@ -106,6 +114,6 @@ protected:
 
 private:
 	
-	static uint32 AvailableID;
+	static int32 AvailableID;
 
 };

@@ -3,7 +3,7 @@
 #include "VREPSandbox.h"
 #include "Room.h"
 
-uint32 URoom::AvailableID=0;
+int32 URoom::AvailableID=0;
 
 #define LOG(format, ...) UE_LOG(LogTemp, Log, format, __VA_ARGS__)
 
@@ -12,14 +12,14 @@ URoom::URoom(){
 	AvailableID++;
 }
 
-void URoom::SetSize(uint32 W, uint32 H)
+void URoom::SetSize(int32 W, int32 H)
 {
 	Width = W;
 	Height = H;
 	Size = W*H;
 }
 
-void URoom::SetSize(uint32 S)
+void URoom::SetSize(int32 S)
 {
 	Size = S;
 }
@@ -29,7 +29,7 @@ void URoom::SetIsFreeform(bool bFreeform)
 	Freeform = bFreeform;
 }
 
-void URoom::AddTile(uint32 Index)
+void URoom::AddTile(int32 Index)
 {
 	Tiles.Add(Index);
 }
@@ -39,17 +39,17 @@ void URoom::AddExit(FExitStruct Exit)
 	Exits.Add(Exit);
 }
 
-uint32 URoom::GetWidth()
+int32 URoom::GetWidth()
 {
 	return Width;
 }
 
-uint32 URoom::GetHeight()
+int32 URoom::GetHeight()
 {
 	return Height;
 }
 
-uint32 URoom::GetSize()
+int32 URoom::GetSize()
 {
 	if (Freeform){
 		return Size;
@@ -58,12 +58,13 @@ uint32 URoom::GetSize()
 	}
 }
 
-uint32 URoom::GetID()
+int32 URoom::GetID()
 {
 	return ID;
 }
 
-TArray<FExitStruct> URoom::FindExits(uint32 Index)
+// Returns the exits at the given index
+TArray<FExitStruct> URoom::FindExits(int32 Index)
 {
 	TArray<FExitStruct> Result;
 	for(FExitStruct Exit : Exits){
@@ -75,15 +76,16 @@ TArray<FExitStruct> URoom::FindExits(uint32 Index)
 	return Result;
 }
 
-FExitStruct *URoom::FindExit(uint32 Index, EDirection Direction)
+// Returns the index of the exit in the array, -1 if there is none
+int32 URoom::FindExitIndex(int32 Index, EDirection Direction)
 {
-	for (FExitStruct &Exit : Exits) {
-		if (Exit.Index == Index && Exit.ExitDirection == Direction) {
-			return &Exit;
+	for (int32 i=0 ; i<Exits.Num() ; i++){
+		if (Exits[i].Index == Index && Exits[i].ExitDirection == Direction) {
+			return i;
 		}
 	}
 
-	return nullptr;
+	return -1;
 }
 
 bool URoom::IsFreeform()
@@ -91,7 +93,7 @@ bool URoom::IsFreeform()
 	return Freeform;
 }
 
-TArray<uint32> & URoom::GetTiles()
+TArray<int32> & URoom::GetTiles()
 {
 	return Tiles;
 }

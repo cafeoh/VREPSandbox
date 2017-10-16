@@ -7,6 +7,18 @@
 #include "Room.h"
 #include "LevelGenerator.generated.h"
 
+// Contains all necessary information for the blueprint to spawn tiles
+USTRUCT(BlueprintType)
+struct FTileStruct
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		bool Enabled = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+		TArray<uint8> Walls;
+};
 
 UCLASS()
 class VREPSANDBOX_API ALevelGenerator : public AActor
@@ -18,29 +30,29 @@ public:
 	ALevelGenerator();
 
 	// Property
-	UPROPERTY(EditAnywhere, Category = "Generation")
-		uint32 MapSizeX = 5;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation")
+		int32 MapSizeX = 5;
 
-	UPROPERTY(EditAnywhere, Category = "Generation")
-		uint32 MapSizeY = 5;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation")
+		int32 MapSizeY = 5;
 
 
-	UPROPERTY(EditAnywhere, Category = "Generation")
-		uint32 Seed = 12345;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation")
+		int32 Seed = 12345;
 
-	UPROPERTY(EditAnywhere, Category = "Generation")
-		uint32 MaxIteration = 100;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation")
+		int32 MaxIteration = 100;
 
-	UPROPERTY(EditAnywhere, Category = "Generation")
-		uint32 MaxRoomSize = 3;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation")
+		int32 MaxRoomSize = 3;
 
-	UPROPERTY(EditAnywhere, Category = "Generation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation")
 		bool GenerateInEditor = true;
 
-	UPROPERTY(EditAnywhere, Category = "Generation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation")
 		bool RegenerateChildrenOnMove = true;
 
-	UPROPERTY(EditAnywhere, Category = "Generation")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Generation")
 		bool Regenerate = false;
 
 
@@ -53,6 +65,8 @@ public:
 		UBlueprint *WallBP;
 	UPROPERTY(EditAnywhere, Category = "Building Blocks")
 		UBlueprint *DoorWallBP;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Blocks")
+		UBlueprint *PieceBP;
 
 protected:
 
@@ -60,21 +74,36 @@ protected:
 	float TileWorldSize;
 
 	UPROPERTY()
-	AActor *SavedActor;
+	TArray<AActor*> Pieces;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly)
 	TArray<URoom*> Rooms;
+
+	UPROPERTY(BlueprintReadOnly)
+	TArray<URoom*> RoomsToBuild;
+
+	UPROPERTY(BlueprintReadOnly)
+	TArray<FTileStruct> Tiles;
 
 	int64 LastGenerationTime;
 
 	void BuildRoom(URoom &Room);
-	void Generate();
-	void Clean();
 
-	FVector GetTileWorldPosition(uint32 x, uint32 y);
-	FVector GetTileWorldPosition(uint32 Index);
-	void DrawArrowOnTile(uint32 x, uint32 y, EDirection d, FColor color);
-	void DrawArrowOnTile(uint32 index, EDirection d, FColor color);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "Level Generator")
+		void BuildLevel();
+	UFUNCTION(BlueprintCallable, Category = "Level Generator")
+		void Generate();
+	UFUNCTION(BlueprintCallable, Category = "Level Generator")
+		void Clean();
+
+	FVector GetTileWorldPosition(int32 x, int32 y);
+
+	UFUNCTION(BlueprintPure, Category = "Level Generator")
+		FVector GetTileWorldPosition(int32 Index);
+
+	void DrawArrowOnTile(int32 x, int32 y, EDirection d, FColor color);
+	void DrawArrowOnTile(int32 index, EDirection d, FColor color);
 
 	float GetAdjacentExitIndex(FExitStruct Exit);
 
