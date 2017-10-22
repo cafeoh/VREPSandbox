@@ -56,15 +56,6 @@ public:
 		bool Regenerate = false;
 
 
-
-	UPROPERTY(EditAnywhere, Category = "Building Blocks")
-		UBlueprint *FloorBP;
-	UPROPERTY(EditAnywhere, Category = "Building Blocks")
-		UBlueprint *FloorFreeformBP;
-	UPROPERTY(EditAnywhere, Category = "Building Blocks")
-		UBlueprint *WallBP;
-	UPROPERTY(EditAnywhere, Category = "Building Blocks")
-		UBlueprint *DoorWallBP;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Building Blocks")
 		UBlueprint *PieceBP;
 

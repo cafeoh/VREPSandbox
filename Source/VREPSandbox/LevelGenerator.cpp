@@ -322,6 +322,8 @@ void ALevelGenerator::Generate()
 
 void ALevelGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	RootComponent->SetWorldScale3D(FVector(MapSizeX, MapSizeY, 1.));
 
 	BuildLevel();
@@ -331,8 +333,6 @@ void ALevelGenerator::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		Generate();
 		Regenerate = false;
 	}
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
 void ALevelGenerator::OnConstruction(const FTransform &Transform)
@@ -340,8 +340,8 @@ void ALevelGenerator::OnConstruction(const FTransform &Transform)
 	Super::OnConstruction(Transform);
 
 	// Prevent scaling and rotation
-	MapSizeX = FMath::RoundToInt(RootComponent->GetComponentScale().X);
-	MapSizeY = FMath::RoundToInt(RootComponent->GetComponentScale().Y);
+	// MapSizeX = FMath::RoundToInt(RootComponent->GetComponentScale().X);
+	// MapSizeY = FMath::RoundToInt(RootComponent->GetComponentScale().Y);
 
 	RootComponent->SetWorldScale3D(FVector(MapSizeX,MapSizeY,1.));
 	RootComponent->SetWorldRotation(FQuat::Identity);
